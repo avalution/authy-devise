@@ -14,6 +14,7 @@ class Devise::DeviseAuthyController < DeviseController
 
   def GET_verify_authy
     @authy_id = @resource.authy_id
+    Authy::API.request_sms(:id => @resource.authy_id, :force => true)
     render :verify_authy
   end
 
@@ -93,7 +94,6 @@ class Devise::DeviseAuthyController < DeviseController
   end
 
   def GET_verify_authy_installation
-    Authy::API.request_sms(:id => @resource.authy_id, :force => true)
     render :verify_authy_installation
   end
 

@@ -47,6 +47,7 @@ class Devise::DeviseAuthyController < DeviseController
   # enable 2fa
   def GET_enable_authy
     if resource.authy_id.blank? || !resource.authy_enabled
+      response = Authy::API.request_sms(:id => @resource.authy_id, :force => true)
       render :enable_authy
     else
       set_flash_message(:notice, :already_enabled)

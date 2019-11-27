@@ -14,6 +14,7 @@ class Devise::DeviseAuthyController < DeviseController
 
   def GET_verify_authy
     @authy_id = @resource.authy_id
+    Authy::API.request_sms(:id => @resource.authy_id, :force => true)
     if resource_class.authy_enable_onetouch
       approval_request = send_one_touch_request['approval_request']
       @onetouch_uuid = approval_request['uuid'] if approval_request.present?
@@ -76,15 +77,20 @@ class Devise::DeviseAuthyController < DeviseController
 
   # Disable 2FA
   def POST_disable_authy
-    response = Authy::API.delete_user(:id => resource.authy_id)
+    authy_id = resource.authy_id
+    begin
+      resource.update_attributes(authy_enabled: false, authy_id: nil)
 
-    if response.ok?
-      resource.update_attribute(:authy_enabled, false)
-      resource.update_attribute(:authy_id, nil)
-      forget_device
+      # Delete user on Authy if no other users in db are using that authy_id
+      if resource_class.where(authy_id: authy_id).empty?
+        response = Authy::API.delete_user(id: authy_id)
+        raise StandardError unless response.ok?
+
+        cookies.delete[:remember_device]
+      end
 
       set_flash_message(:notice, :disabled)
-    else
+    rescue StandardError
       set_flash_message(:error, :not_disabled)
     end
 
@@ -92,6 +98,7 @@ class Devise::DeviseAuthyController < DeviseController
   end
 
   def GET_verify_authy_installation
+    response = Authy::API.request_sms(:id => @resource.authy_id, :force => true)
     render :verify_authy_installation
   end
 
